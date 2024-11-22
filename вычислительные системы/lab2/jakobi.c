@@ -62,17 +62,39 @@ static void Worker (int myid, int numWorkers,
     int left, right;
     MPI_Status status;
 //????? инициализировать матрицы; определить соседей left и right;
+    // for (int i = 0; i < gridSize; i++){
+    //     for (int j = 0; j < gridSize; j++){
+    //         if ((i == 0) || (i == gridSize - 1)) {
+    //             grid[current][i][j] = 1.0;
+    //             grid[next][i][j] = 1.0;
+    //         }
+    //         else if ((j == 0) || (j == gridSize - 1)) {
+    //             grid[current][i][j] = 0.0;
+    //             grid[next][i][j] = 0.0;
+    //         }
+    //         else grid[current][i][j] = 0.0;
+    //     }
+    // }
     for (int i = 0; i < gridSize; i++){
-        for (int j = 0; j < gridSize; j++){
-            if ((i == 0) || (i == gridSize - 1)) {
-                grid[current][i][j] = 1.0;
-                grid[next][i][j] = 1.0;
+        for (int j = 0; j < gridSize; j++) {
+            if (i == 0) {
+                grid[current][i][j] = 11.0;
+                grid[next][i][j] = 11.0;
             }
-            else if ((j == 0) || (j == gridSize - 1)) {
+            else if (i == gridSize - 1) {
+                grid[current][i][j] = -1.0;
+                grid[next][i][j] = -1.0;
+            }
+            else if (j == 0) {
+                grid[current][i][j] = 12.0;
+                grid[next][i][j] = 12.0;
+            }
+            else if (j == gridSize - 1) {
+                grid[current][i][j] = 4.0;
+                grid[next][i][j] = 4.0;
+            }
+            else
                 grid[current][i][j] = 0.0;
-                grid[next][i][j] = 0.0;
-            }
-            else grid[current][i][j] = 0.0;
         }
     }
     for (int i = 1; i < gridSize - 1; i++){
