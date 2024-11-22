@@ -1,0 +1,21 @@
+#!/bin/bash
+mpicc -o mympi.out icpi.c
+IFS=$','
+echo "np,interval,try,pi,error,time"
+for np in $1
+do
+    #echo "==========================="
+    #echo "number of processes:" $np
+    for interval in $2
+    do
+        #echo "-------------------------"
+        #echo "interval:" $interval
+        i=1
+        while [ $i -lt $[ $3 + 1 ] ]
+        do
+        #echo "try:" $i
+        echo "$np,$interval,$i,$(mpirun -n $np ./mympi.out $interval)"
+        i=$[ $i + 1 ]
+        done
+    done
+done
