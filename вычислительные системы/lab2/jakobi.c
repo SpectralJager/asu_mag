@@ -42,16 +42,16 @@ static void Worker(int myid, int numWorkers, int stripSize, int gridSize,
     for (int j = 0; j < gridSize; j++) {
       if (i == 0) {
         grid[current][i][j] = 0.0;
-        grid[next][i][j] = 10.0;
+        grid[next][i][j] = 4.0;
       } else if (i == gridSize - 1) {
         grid[current][i][j] = 0.0;
-        grid[next][i][j] = 10.0;
+        grid[next][i][j] = -6.0;
       } else if (j == 0) {
-        grid[current][i][j] = 1.0;
-        grid[next][i][j] = 5.0;
+        grid[current][i][j] = 0.0;
+        grid[next][i][j] = -4.0;
       } else if (j == gridSize - 1) {
-        grid[current][i][j] = 1.0;
-        grid[next][i][j] = 5.0;
+        grid[current][i][j] = 0.0;
+        grid[next][i][j] = -3.0;
       } else
         grid[current][i][j] = 1.0;
     }
