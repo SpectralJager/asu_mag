@@ -46,22 +46,24 @@ func run() error {
 		case <-after:
 			return nil
 		default:
-			leftSpeed, err := leftMotor.Speed()
-			if err != nil {
-				return fmt.Errorf("can't get speed of left motor: %w", err)
-			}
-
-			rightSpeed, err := rightMotor.Speed()
-			if err != nil {
-				return fmt.Errorf("can't get speed of right motor: %w", err)
-			}
-
-			newSpeed := pid.Update(float64(rightSpeed+leftSpeed) / 2)
-			log.Printf("New speed: %0.2f\n", newSpeed)
-
-			leftMotor.SetSpeedSetpoint(int(newSpeed)).Command("run-forever")
-			rightMotor.SetSpeedSetpoint(int(newSpeed)).Command("run-forever")
 		}
+		leftSpeed, err := leftMotor.Speed()
+		if err != nil {
+			return fmt.Errorf("can't get speed of left motor: %w", err)
+		}
+
+		rightSpeed, err := rightMotor.Speed()
+		if err != nil {
+			return fmt.Errorf("can't get speed of right motor: %w", err)
+		}
+
+		newSpeed := pid.Update(float64(rightSpeed+leftSpeed) / 2)
+		log.Printf("New speed: %0.2f\n", newSpeed)
+
+		leftMotor.SetSpeedSetpoint(int(newSpeed)).Command("run-forever")
+		rightMotor.SetSpeedSetpoint(int(newSpeed)).Command("run-forever")
+
+		time.Sleep(time.Millisecond * 500)
 	}
 }
 
