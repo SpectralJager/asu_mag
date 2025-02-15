@@ -11,14 +11,15 @@ import (
 )
 
 var (
-	targetSpeed = flag.Int("target", 0, "set target speed")
-	P           = flag.Float64("p", 0, "set pid's p coefficient")
-	I           = flag.Float64("i", 0, "set pid's i coefficient")
-	D           = flag.Float64("d", 0, "set pid's d coefficient")
+	TargetSpeed = flag.Int("target", 500, "set target speed")
+	P           = flag.Float64("p", .01, "set pid's p coefficient")
+	I           = flag.Float64("i", .1, "set pid's i coefficient")
+	D           = flag.Float64("d", .1, "set pid's d coefficient")
 	Duration    = flag.Int("duration", 10, "set duration in seconds")
 )
 
 func main() {
+	flag.Parse()
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
@@ -37,9 +38,16 @@ func run() error {
 	}
 	defer rightMotor.Command("stop")
 
-	pid := NewPIDController(*P, *I, *D, float64(*targetSpeed))
+	pid1 := NewPIDController(*P, *I, *D, float64(*TargetSpeed))
+	pid2 := NewPIDController(*P, *I, *D, float64(*TargetSpeed))
 
 	after := time.After(time.Second * time.Duration(*Duration))
+
+	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%d, Duration=%d sec\n", pid1.P, pid1.I, pid1.D, *TargetSpeed, *Duration)
+	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%d, Duration=%d sec\n", pid2.P, pid2.I, pid2.D, *TargetSpeed, *Duration)
+
+	leftMotor.SetSpeedSetpoint(0).Command("run-forever")
+	rightMotor.SetSpeedSetpoint(0).Command("run-forever")
 
 	for {
 		select {
@@ -57,11 +65,18 @@ func run() error {
 			return fmt.Errorf("can't get speed of right motor: %w", err)
 		}
 
-		newSpeed := pid.Update(float64(rightSpeed+leftSpeed) / 2)
-		log.Printf("New speed: %0.2f\n", newSpeed)
+		newSpeed_left := pid1.Update(float64(leftSpeed))
+		newSpeed_right := pid2.Update(float64(rightSpeed))
+		if newSpeed_left >= 1050 {
+			newSpeed_left = 1050
+		}
+		if newSpeed_right >= 1050 {
+			newSpeed_right = 1050
+		}
+		log.Printf("New speed: %0.2f, %0.2f\n", newSpeed_left, newSpeed_right)
 
-		leftMotor.SetSpeedSetpoint(int(newSpeed)).Command("run-forever")
-		rightMotor.SetSpeedSetpoint(int(newSpeed)).Command("run-forever")
+		leftMotor.SetSpeedSetpoint(int(newSpeed_left)).Command("run-forever")
+		rightMotor.SetSpeedSetpoint(int(newSpeed_right)).Command("run-forever")
 
 		time.Sleep(time.Millisecond * 500)
 	}
