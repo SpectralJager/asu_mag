@@ -29,5 +29,7 @@ func (pid *PIDController) Update(input float64) float64 {
 	pid.State.ErrorIntegral += pid.State.Error
 	pid.State.ErrorDerivative = pid.State.Error - prevError
 
-	return pid.P*pid.State.Error + pid.I*pid.State.ErrorIntegral + pid.D*pid.State.ErrorDerivative
+	return pid.P*pid.State.Error +
+		pid.I*pid.State.ErrorIntegral +
+		pid.D*pid.State.ErrorDerivative
 }

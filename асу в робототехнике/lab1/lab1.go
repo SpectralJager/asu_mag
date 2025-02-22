@@ -48,6 +48,8 @@ func run() error {
 
 	leftMotor.SetSpeedSetpoint(0).Command("run-forever")
 	rightMotor.SetSpeedSetpoint(0).Command("run-forever")
+	SetMotorPID(leftMotor, 0, 0, 0)
+	SetMotorPID(rightMotor, 0, 0, 0)
 
 	for {
 		select {
