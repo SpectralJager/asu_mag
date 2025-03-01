@@ -5,17 +5,23 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"path"
+	"strconv"
 	"time"
-
-	"github.com/ev3go/ev3dev"
 )
 
 var (
-	TargetSpeed = flag.Int("target", 500, "set target speed")
-	P           = flag.Float64("p", .01, "set pid's p coefficient")
-	I           = flag.Float64("i", .1, "set pid's i coefficient")
-	D           = flag.Float64("d", .1, "set pid's d coefficient")
+	TargetSpeed = flag.Int("target", 200, "set target speed")
+	P           = flag.Float64("p", .0, "set pid's p coefficient")
+	I           = flag.Float64("i", .0, "set pid's i coefficient")
+	D           = flag.Float64("d", .0, "set pid's d coefficient")
 	Duration    = flag.Int("duration", 10, "set duration in seconds")
+)
+
+const (
+	LeftMotor  = "/sys/class/tacho-motor/motor0"
+	RightMotor = "/sys/class/tacho-motor/motor1"
 )
 
 func main() {
@@ -26,17 +32,8 @@ func main() {
 }
 
 func run() error {
-	leftMotor, err := ev3dev.TachoMotorFor("ev3-ports:outA", "lego-ev3-l-motor")
-	if err != nil {
-		return fmt.Errorf("failed to find motor on port A: %w", err)
-	}
-	defer leftMotor.Command("stop")
-
-	rightMotor, err := ev3dev.TachoMotorFor("ev3-ports:outB", "lego-ev3-l-motor")
-	if err != nil {
-		return fmt.Errorf("failed to find motor on port B: %w", err)
-	}
-	defer rightMotor.Command("stop")
+	defer Command(LeftMotor, "stop")
+	defer Command(RightMotor, "stop")
 
 	pid1 := NewPIDController(*P, *I, *D, float64(*TargetSpeed))
 	pid2 := NewPIDController(*P, *I, *D, float64(*TargetSpeed))
@@ -46,10 +43,8 @@ func run() error {
 	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%d, Duration=%d sec\n", pid1.P, pid1.I, pid1.D, *TargetSpeed, *Duration)
 	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%d, Duration=%d sec\n", pid2.P, pid2.I, pid2.D, *TargetSpeed, *Duration)
 
-	leftMotor.SetSpeedSetpoint(0).Command("run-forever")
-	rightMotor.SetSpeedSetpoint(0).Command("run-forever")
-	SetMotorPID(leftMotor, 0, 0, 0)
-	SetMotorPID(rightMotor, 0, 0, 0)
+	SetSpeed(LeftMotor, int(0))
+	SetSpeed(RightMotor, int(0))
 
 	for {
 		select {
@@ -57,12 +52,12 @@ func run() error {
 			return nil
 		default:
 		}
-		leftSpeed, err := leftMotor.Speed()
+		leftSpeed, err := GetSpeed(LeftMotor)
 		if err != nil {
 			return fmt.Errorf("can't get speed of left motor: %w", err)
 		}
 
-		rightSpeed, err := rightMotor.Speed()
+		rightSpeed, err := GetSpeed(RightMotor)
 		if err != nil {
 			return fmt.Errorf("can't get speed of right motor: %w", err)
 		}
@@ -77,65 +72,35 @@ func run() error {
 		}
 		log.Printf("New speed: %0.2f, %0.2f\n", newSpeed_left, newSpeed_right)
 
-		leftMotor.SetSpeedSetpoint(int(newSpeed_left)).Command("run-forever")
-		rightMotor.SetSpeedSetpoint(int(newSpeed_right)).Command("run-forever")
+		SetSpeed(LeftMotor, int(newSpeed_left))
+		SetSpeed(RightMotor, int(newSpeed_right))
+		Command(LeftMotor, "run-forever")
+		Command(RightMotor, "run-forever")
 
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * 100)
 	}
 }
 
-// func weels() {
-// 	m1, err := ev3dev.TachoMotorFor("ev3-ports:outA", "lego-ev3-l-motor")
-// 	if err != nil {
-// 		log.Fatalf("failed to find motor on outA: %v", err)
-// 	}
-// 	err = m1.SetStopAction("brake").Err()
-// 	if err != nil {
-// 		log.Fatalf("failed to set brake stop for left large motor on outB: %v", err)
-// 	}
+func Command(motor string, command string) error {
+	commandPath := path.Join(motor, "command")
 
-// 	m2, err := ev3dev.TachoMotorFor("ev3-ports:outB", "lego-ev3-l-motor")
-// 	if err != nil {
-// 		log.Fatalf("failed to find motor on outB: %v", err)
-// 	}
-// 	err = m2.SetStopAction("brake").Err()
-// 	if err != nil {
-// 		log.Fatalf("failed to set brake stop for left large motor on outB: %v", err)
-// 	}
+	return os.WriteFile(commandPath, []byte(command), 0644)
+}
 
-// 	m1.SetSpeedSetpoint(-10 * m1.MaxSpeed() / 100).Command("run-forever")
-// 	m2.SetSpeedSetpoint(10 * m2.MaxSpeed() / 100).Command("run-forever")
+func SetSpeed(motor string, speed int) error {
+	if speed >= 1050 {
+		speed = 1050
+	}
+	speedPath := path.Join(motor, "speed_sp")
 
-// 	fmt.Println("Suslic")
-// 	time.Sleep(time.Second * 2)
+	return os.WriteFile(speedPath, []byte(strconv.Itoa(speed)), 0644)
+}
 
-// 	m1.Command("stop")
-// 	m2.Command("stop")
-// }
-
-// func sound() {
-// 	const SoundPath = "/dev/input/by-path/platform-sound-event"
-// 	speaker := ev3dev.NewSpeaker(SoundPath)
-// 	err := speaker.Init()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	defer speaker.Close()
-// 	// Play tone at 440Hz for 200ms...
-// 	err = speaker.Tone(440)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	time.Sleep(200 * time.Millisecond)
-// 	// play tone at 220Hz for 200ms...
-// 	err = speaker.Tone(220)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	time.Sleep(200 * time.Millisecond)
-// 	// then stop tone playback.
-// 	err = speaker.Tone(0)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
+func GetSpeed(motor string) (int, error) {
+	speedPath := path.Join(motor, "speed")
+	data, err := os.ReadFile(speedPath)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(string(data[:len(data)-1]))
+}

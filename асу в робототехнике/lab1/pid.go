@@ -14,12 +14,12 @@ type PIDState struct {
 	ErrorDerivative float64
 }
 
-func NewPIDController(P, I, D, targetSpeed float64) PIDController {
+func NewPIDController(P, I, D, target float64) PIDController {
 	return PIDController{
 		P:      P,
 		I:      I,
 		D:      D,
-		Target: targetSpeed,
+		Target: target,
 	}
 }
 
@@ -27,7 +27,7 @@ func (pid *PIDController) Update(input float64) float64 {
 	prevError := pid.State.Error
 	pid.State.Error = pid.Target - input
 	pid.State.ErrorIntegral += pid.State.Error
-	pid.State.ErrorDerivative = pid.State.Error - prevError
+	pid.State.ErrorDerivative = prevError - pid.State.Error
 
 	return pid.P*pid.State.Error +
 		pid.I*pid.State.ErrorIntegral +
