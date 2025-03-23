@@ -1,4 +1,3 @@
-import gleam/float
 import gleam/list
 
 pub type Perceptron {
