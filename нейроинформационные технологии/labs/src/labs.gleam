@@ -1,5 +1,5 @@
-import lab2
+import labs/lab3
 
 pub fn main() {
-  lab2.run()
+  lab3.run()
 }

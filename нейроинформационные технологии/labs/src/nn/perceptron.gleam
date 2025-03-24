@@ -4,7 +4,7 @@ pub type Perceptron {
   Perceptron(weights: List(Float), rate: Float, act_fn: fn(Float) -> Float)
 }
 
-pub fn new_perceptron(
+pub fn new(
   input_size: Int,
   learning_rate: Float,
   activation_fn: fn(Float) -> Float,
