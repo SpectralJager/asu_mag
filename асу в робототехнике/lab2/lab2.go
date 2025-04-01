@@ -15,14 +15,14 @@ var (
 	P        = flag.Float64("p", .0, "set pid's p coefficient")
 	I        = flag.Float64("i", .0, "set pid's i coefficient")
 	D        = flag.Float64("d", .0, "set pid's d coefficient")
-	Step     = flag.Float64("step", 50., "set speed step increment")
+	Step     = flag.Float64("step", 10., "set speed step increment")
 	Duration = flag.Int("duration", 10, "set duration in seconds")
 )
 
 const (
 	LeftMotor  = "/sys/class/tacho-motor/motor0"
 	RightMotor = "/sys/class/tacho-motor/motor1"
-	Sensor     = "/sys/class/lego-sensor/sensor0"
+	Sensor     = "/sys/class/lego-sensor/sensor1"
 )
 
 func main() {
@@ -56,19 +56,8 @@ func run() error {
 			return err
 		}
 		newDistance := pid.Update(float64(distance))
-		k := newDistance / pid.Target * -1
 
-		speed, err := GetSpeed(LeftMotor)
-		if err != nil {
-			return err
-		}
-		newSpeed := speed
-		switch {
-		// case distance < int(pid.Target/3) || distance < 100:
-		// 	newSpeed = 0
-		case k > 0 || k < 0:
-			newSpeed += int(*Step * k)
-		}
+		newSpeed := int(newDistance * -1 * *Step)
 
 		SetSpeed(LeftMotor, newSpeed)
 		SetSpeed(RightMotor, newSpeed)
@@ -76,7 +65,7 @@ func run() error {
 		Command(LeftMotor, "run-forever")
 		Command(RightMotor, "run-forever")
 
-		log.Printf("distance: %d mm\nspeed: %d\nk = %.2f\n", distance, newSpeed, k)
+		log.Printf("distance: %d mm\nspeed: %d\n", distance, newSpeed)
 
 		time.Sleep(time.Millisecond * 100)
 	}
