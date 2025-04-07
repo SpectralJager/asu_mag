@@ -37,13 +37,9 @@ func run() error {
 	defer Command(LeftMotor, "stop")
 	defer Command(RightMotor, "stop")
 
-	pid1 := NewPIDController(*P, *I, *D, *TargetSpeed)
-	pid2 := NewPIDController(*P, *I, *D, *TargetSpeed)
+	pid := NewPIDController(*P, *I, *D, 0)
 
 	after := time.After(time.Second * time.Duration(*Duration))
-
-	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%f, Duration=%d sec\n", pid1.P, pid1.I, pid1.D, *TargetSpeed, *Duration)
-	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%f, Duration=%d sec\n", pid2.P, pid2.I, pid2.D, *TargetSpeed, *Duration)
 
 	SetSpeed(LeftMotor, int(0))
 	SetSpeed(RightMotor, int(0))
@@ -54,50 +50,46 @@ func run() error {
 			return nil
 		default:
 		}
-		leftSpeed, err := GetSpeed(LeftMotor)
-		if err != nil {
-			return fmt.Errorf("can't get speed of left motor: %w", err)
-		}
-
-		rightSpeed, err := GetSpeed(RightMotor)
-		if err != nil {
-			return fmt.Errorf("can't get speed of right motor: %w", err)
-		}
-
-		leftColor, err := GetIsBlack(Sensor1)
+		leftColor, err := GetColor(Sensor1)
 		if err != nil {
 			return fmt.Errorf("can't get left color: %w", err)
 		}
 
-		rightColor, err := GetIsBlack(Sensor2)
+		rightColor, err := GetColor(Sensor2)
 		if err != nil {
 			return fmt.Errorf("can't get right color: %w", err)
 		}
 
-		newSpeed_left := pid1.Update(float64(leftSpeed))
-		newSpeed_right := pid2.Update(float64(rightSpeed))
+		correction := pid.Update(float64(leftColor - rightColor))
 
-		if leftColor <= 20 {
-			newSpeed_right = *TargetSpeed
-			newSpeed_left = 0
-		} else if rightColor <= 20 {
-			newSpeed_left = *TargetSpeed
-			newSpeed_right = 0
-		} else {
-			newSpeed_left = *TargetSpeed
-			newSpeed_right = *TargetSpeed
+		// if leftColor <= 20 {
+		// 	newSpeed_right = *TargetSpeed
+		// 	newSpeed_left = 0
+		// } else if rightColor <= 20 {
+		// 	newSpeed_left = *TargetSpeed
+		// 	newSpeed_right = 0
+		// } else {
+		// 	newSpeed_left = *TargetSpeed
+		// 	newSpeed_right = *TargetSpeed
+		// }
+		switch {
+		case correction < 0:
+			SetSpeed(LeftMotor, 80)
+			SetSpeed(RightMotor, 0)
+		case correction > 0:
+			SetSpeed(LeftMotor, 80)
+			SetSpeed(RightMotor, 0)
+		default:
+			SetSpeed(LeftMotor, 80)
+			SetSpeed(RightMotor, 80)
 		}
+		fmt.Printf(
+			"Correction: %.2f, left speed: %d, right speed: %d\n",
+			correction,
+			Must(GetSpeed(LeftMotor)),
+			Must(GetSpeed(RightMotor)),
+		)
 
-		if newSpeed_left >= 1050 {
-			newSpeed_left = 1050
-		}
-		if newSpeed_right >= 1050 {
-			newSpeed_right = 1050
-		}
-		log.Printf("New speed: %0.2f, %0.2f\n", newSpeed_left, newSpeed_right)
-
-		SetSpeed(LeftMotor, int(newSpeed_left))
-		SetSpeed(RightMotor, int(newSpeed_right))
 		Command(LeftMotor, "run-forever")
 		Command(RightMotor, "run-forever")
 
@@ -111,7 +103,7 @@ func Command(motor string, command string) error {
 	return os.WriteFile(commandPath, []byte(command), 0644)
 }
 
-func GetIsBlack(sensor string) (int, error) {
+func GetColor(sensor string) (int, error) {
 	distancePath := path.Join(sensor, "value0")
 	data, err := os.ReadFile(distancePath)
 	if err != nil {
