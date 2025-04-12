@@ -11,4 +11,4 @@ lab3:
 	GOOS=linux GOARCH=arm GOARM=5 go build -o build/app ./lab3/.
 
 send:
-	scp build/app robot@192.168.175.78:labs/
+	scp build/app robot@192.168.196.78:labs/

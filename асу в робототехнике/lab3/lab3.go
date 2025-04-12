@@ -22,7 +22,7 @@ var (
 const (
 	LeftMotor  = "/sys/class/tacho-motor/motor0"
 	RightMotor = "/sys/class/tacho-motor/motor1"
-	Sensor1    = "/sys/class/lego-sensor/sensor0"
+	Sensor1    = "/sys/class/lego-sensor/sensor1"
 	Sensor2    = "/sys/class/lego-sensor/sensor2"
 )
 
@@ -62,30 +62,40 @@ func run() error {
 
 		correction := pid.Update(float64(leftColor - rightColor))
 
-		// if leftColor <= 20 {
-		// 	newSpeed_right = *TargetSpeed
-		// 	newSpeed_left = 0
-		// } else if rightColor <= 20 {
-		// 	newSpeed_left = *TargetSpeed
-		// 	newSpeed_right = 0
-		// } else {
-		// 	newSpeed_left = *TargetSpeed
-		// 	newSpeed_right = *TargetSpeed
-		// }
-		switch {
-		case correction < 0:
-			SetSpeed(LeftMotor, 80)
-			SetSpeed(RightMotor, 0)
-		case correction > 0:
-			SetSpeed(LeftMotor, 80)
-			SetSpeed(RightMotor, 0)
-		default:
-			SetSpeed(LeftMotor, 80)
-			SetSpeed(RightMotor, 80)
+		newLeftSpeed := int(80 + (-1 * correction))
+		newRightSpeed := int(80 + correction)
+
+		if newLeftSpeed > 160 {
+			newLeftSpeed = 160
 		}
+		if newRightSpeed > 160 {
+			newRightSpeed = 160
+		}
+		if newLeftSpeed < 0 {
+			newLeftSpeed = 0
+		}
+		if newRightSpeed < 0 {
+			newRightSpeed = 0
+		}
+
+		SetSpeed(LeftMotor, newLeftSpeed)
+		SetSpeed(RightMotor, newRightSpeed)
+		// switch {
+		// case correction < -10:
+		// 	SetSpeed(LeftMotor, 80)
+		// 	SetSpeed(RightMotor, 0)
+		// case correction > 10:
+		// 	SetSpeed(LeftMotor, 0)
+		// 	SetSpeed(RightMotor, 80)
+		// default:
+		// 	SetSpeed(LeftMotor, 80)
+		// 	SetSpeed(RightMotor, 80)
+		// }
 		fmt.Printf(
-			"Correction: %.2f, left speed: %d, right speed: %d\n",
+			"Correction: %.2f, left_color: %d, right_color: %d, left speed: %d, right speed: %d\n",
 			correction,
+			leftColor,
+			rightColor,
 			Must(GetSpeed(LeftMotor)),
 			Must(GetSpeed(RightMotor)),
 		)

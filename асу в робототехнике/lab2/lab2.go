@@ -22,7 +22,7 @@ var (
 const (
 	LeftMotor  = "/sys/class/tacho-motor/motor0"
 	RightMotor = "/sys/class/tacho-motor/motor1"
-	Sensor     = "/sys/class/lego-sensor/sensor1"
+	Sensor     = "/sys/class/lego-sensor/sensor0"
 )
 
 func main() {
@@ -65,7 +65,7 @@ func run() error {
 		Command(LeftMotor, "run-forever")
 		Command(RightMotor, "run-forever")
 
-		log.Printf("distance: %d mm\nspeed: %d\n", distance, newSpeed)
+		log.Printf("distance: %d mm, speed: %d\n", distance, newSpeed)
 
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -89,6 +89,8 @@ func GetDistance(sensor string) (int, error) {
 func SetSpeed(motor string, speed int) error {
 	if speed >= 1050 {
 		speed = 1050
+	} else if speed <= -1050 {
+		speed = -1050
 	}
 	speedPath := path.Join(motor, "speed_sp")
 
