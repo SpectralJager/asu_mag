@@ -57,7 +57,7 @@ func run() error {
 		}
 		newDistance := pid.Update(float64(distance))
 
-		newSpeed := int(newDistance * -1 * *Step)
+		newSpeed := int(-newDistance)
 
 		SetSpeed(LeftMotor, newSpeed)
 		SetSpeed(RightMotor, newSpeed)
