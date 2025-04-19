@@ -2,12 +2,10 @@
 package main
 
 import (
+	"asu"
 	"flag"
 	"fmt"
 	"log"
-	"os"
-	"path"
-	"strconv"
 	"time"
 )
 
@@ -32,19 +30,19 @@ func main() {
 }
 
 func run() error {
-	defer Command(LeftMotor, "stop")
-	defer Command(RightMotor, "stop")
+	defer asu.Command(LeftMotor, "stop")
+	defer asu.Command(RightMotor, "stop")
 
-	pid1 := NewPIDController(*P, *I, *D, float64(*TargetSpeed))
-	pid2 := NewPIDController(*P, *I, *D, float64(*TargetSpeed))
+	pid1 := asu.NewPIDController(*P, *I, *D, float64(*TargetSpeed))
+	pid2 := asu.NewPIDController(*P, *I, *D, float64(*TargetSpeed))
 
 	after := time.After(time.Second * time.Duration(*Duration))
 
 	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%d, Duration=%d sec\n", pid1.P, pid1.I, pid1.D, *TargetSpeed, *Duration)
 	log.Printf("P=%.2f, I=%.2f, D=%.2f\nTarget=%d, Duration=%d sec\n", pid2.P, pid2.I, pid2.D, *TargetSpeed, *Duration)
 
-	SetSpeed(LeftMotor, int(0))
-	SetSpeed(RightMotor, int(0))
+	asu.SetSpeed(LeftMotor, 0, 0, 0)
+	asu.SetSpeed(RightMotor, 0, 0, 0)
 
 	for {
 		select {
@@ -52,12 +50,12 @@ func run() error {
 			return nil
 		default:
 		}
-		leftSpeed, err := GetSpeed(LeftMotor)
+		leftSpeed, err := asu.GetSpeed(LeftMotor)
 		if err != nil {
 			return fmt.Errorf("can't get speed of left motor: %w", err)
 		}
 
-		rightSpeed, err := GetSpeed(RightMotor)
+		rightSpeed, err := asu.GetSpeed(RightMotor)
 		if err != nil {
 			return fmt.Errorf("can't get speed of right motor: %w", err)
 		}
@@ -72,35 +70,11 @@ func run() error {
 		}
 		log.Printf("New speed: %0.2f, %0.2f\n", newSpeed_left, newSpeed_right)
 
-		SetSpeed(LeftMotor, int(newSpeed_left))
-		SetSpeed(RightMotor, int(newSpeed_right))
-		Command(LeftMotor, "run-forever")
-		Command(RightMotor, "run-forever")
+		asu.SetSpeed(LeftMotor, int(newSpeed_left), -1050, 1050)
+		asu.SetSpeed(RightMotor, int(newSpeed_right), -1050, 1050)
+		asu.Command(LeftMotor, "run-forever")
+		asu.Command(RightMotor, "run-forever")
 
 		time.Sleep(time.Millisecond * 100)
 	}
-}
-
-func Command(motor string, command string) error {
-	commandPath := path.Join(motor, "command")
-
-	return os.WriteFile(commandPath, []byte(command), 0644)
-}
-
-func SetSpeed(motor string, speed int) error {
-	if speed >= 1050 {
-		speed = 1050
-	}
-	speedPath := path.Join(motor, "speed_sp")
-
-	return os.WriteFile(speedPath, []byte(strconv.Itoa(speed)), 0644)
-}
-
-func GetSpeed(motor string) (int, error) {
-	speedPath := path.Join(motor, "speed")
-	data, err := os.ReadFile(speedPath)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(string(data[:len(data)-1]))
 }

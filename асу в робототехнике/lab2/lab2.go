@@ -2,11 +2,9 @@
 package main
 
 import (
+	"asu"
 	"flag"
 	"log"
-	"os"
-	"path"
-	"strconv"
 	"time"
 )
 
@@ -36,13 +34,13 @@ func main() {
 }
 
 func run() error {
-	defer Command(LeftMotor, "stop")
-	defer Command(RightMotor, "stop")
+	defer asu.Command(LeftMotor, "stop")
+	defer asu.Command(RightMotor, "stop")
 
-	pid := NewPIDController(*P, *I, *D, float64(*Target))
+	pid := asu.NewPIDController(*P, *I, *D, float64(*Target))
 
-	SetSpeed(LeftMotor, 1)
-	SetSpeed(RightMotor, 1)
+	asu.SetSpeed(LeftMotor, 0, 0, 0)
+	asu.SetSpeed(RightMotor, 0, 0, 0)
 
 	after := time.After(time.Second * time.Duration(*Duration))
 	for {
@@ -51,7 +49,7 @@ func run() error {
 			return nil
 		default:
 		}
-		distance, err := GetDistance(Sensor)
+		distance, err := asu.GetDistance(Sensor)
 		if err != nil {
 			return err
 		}
@@ -59,50 +57,14 @@ func run() error {
 
 		newSpeed := int(-newDistance)
 
-		SetSpeed(LeftMotor, newSpeed)
-		SetSpeed(RightMotor, newSpeed)
+		asu.SetSpeed(LeftMotor, newSpeed, -1050, 1050)
+		asu.SetSpeed(RightMotor, newSpeed, -1050, 1050)
 
-		Command(LeftMotor, "run-forever")
-		Command(RightMotor, "run-forever")
+		asu.Command(LeftMotor, "run-forever")
+		asu.Command(RightMotor, "run-forever")
 
 		log.Printf("distance: %d mm, speed: %d\n", distance, newSpeed)
 
 		time.Sleep(time.Millisecond * 100)
 	}
-}
-
-func Command(motor string, command string) error {
-	commandPath := path.Join(motor, "command")
-
-	return os.WriteFile(commandPath, []byte(command), 0644)
-}
-
-func GetDistance(sensor string) (int, error) {
-	distancePath := path.Join(sensor, "value0")
-	data, err := os.ReadFile(distancePath)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(string(data[:len(data)-1]))
-}
-
-func SetSpeed(motor string, speed int) error {
-	if speed >= 1050 {
-		speed = 1050
-	} else if speed <= -1050 {
-		speed = -1050
-	}
-	speedPath := path.Join(motor, "speed_sp")
-
-	return os.WriteFile(speedPath, []byte(strconv.Itoa(speed)), 0644)
-}
-
-func GetSpeed(motor string) (int, error) {
-	speedPath := path.Join(motor, "speed")
-	// tic/sec
-	data, err := os.ReadFile(speedPath)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(string(data[:len(data)-1]))
 }
