@@ -20,7 +20,7 @@ var (
 const (
 	LeftMotor  = "/sys/class/tacho-motor/motor0"
 	RightMotor = "/sys/class/tacho-motor/motor1"
-	Sensor     = "/sys/class/lego-sensor/sensor0"
+	Sensor     = "/sys/class/lego-sensor/sensor1"
 )
 
 func main() {
@@ -43,6 +43,7 @@ func run() error {
 	asu.SetSpeed(RightMotor, 0, 0, 0)
 
 	after := time.After(time.Second * time.Duration(*Duration))
+	distances := []int{}
 	for {
 		select {
 		case <-after:
@@ -53,7 +54,15 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		newDistance := pid.Update(float64(distance))
+		distances = append(distances, distance)
+		if len(distances) > 3 {
+			total := 0
+			for _, d := range distances[len(distances)-3:] {
+				total += d
+			}
+			distance = total / 4
+		}
+		newDistance := int(pid.Update(float64(distance)))
 
 		newSpeed := int(-newDistance)
 
@@ -65,6 +74,6 @@ func run() error {
 
 		log.Printf("distance: %d mm, speed: %d\n", distance, newSpeed)
 
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 200)
 	}
 }

@@ -59,3 +59,12 @@ func GetColor(sensor string) (int, error) {
 	}
 	return strconv.Atoi(string(data[:len(data)-1]))
 }
+
+func GetAngle(sensor string) (int, error) {
+	sensorPath := path.Join(sensor, "value0")
+	data, err := os.ReadFile(sensorPath)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(string(data[:len(data)-1]))
+}

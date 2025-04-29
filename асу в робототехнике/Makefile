@@ -10,5 +10,9 @@ lab2:
 lab3:
 	GOOS=linux GOARCH=arm GOARM=5 go build -o build/app ./lab3/.
 
+.PHONY: lab4
+lab4:
+	GOOS=linux GOARCH=arm GOARM=5 go build -o build/app ./lab4/.
+
 send:
-	scp build/app robot@192.168.23.78:labs/
+	scp build/app robot@ev3dev.local:labs/
