@@ -4,6 +4,7 @@ package main
 import (
 	"asu"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 )
@@ -16,13 +17,13 @@ var (
 )
 
 const (
-	LeftMotor  = "/sys/class/tacho-motor/motor0"
-	RightMotor = "/sys/class/tacho-motor/motor1"
+	LeftMotor  = "/sys/class/tacho-motor/motor4"
+	RightMotor = "/sys/class/tacho-motor/motor3"
 
-	DistanceSensor = "/sys/class/lego-sensor/sensor4"
-	ColorSensor1   = "/sys/class/lego-sensor/sensor2"
-	ColorSensor2   = "/sys/class/lego-sensor/sensor3"
-	GyroSensor     = "/sys/class/lego-sensor/sensor5"
+	DistanceSensor   = "/sys/class/lego-sensor/sensor4"
+	ColorSensorLeft  = "/sys/class/lego-sensor/sensor2"
+	ColorSensorRight = "/sys/class/lego-sensor/sensor1"
+	GyroSensor       = "/sys/class/lego-sensor/sensor0"
 )
 
 func main() {
@@ -38,14 +39,14 @@ func run() error {
 
 	after := time.After(time.Second * time.Duration(*Duration))
 
-	// correctionPID := asu.NewPIDController(.0, .0, .0, 0)
+	correctionPID := asu.NewPIDController(.8, .01, .3, 0)
 
 	asu.SetSpeed(LeftMotor, int(0), 0, 0)
 	asu.SetSpeed(RightMotor, int(0), 0, 0)
 
 	state := 0
 	initAngle := 0
-	counter := 0
+	// counter := 0
 	for {
 		select {
 		case <-after:
@@ -59,123 +60,132 @@ func run() error {
 			// follow line
 			distance, _ := asu.GetDistance(DistanceSensor)
 			log.Printf("distance: %d\n", distance)
-			if distance < 200 {
+			if distance < 100 {
 				state = 1
 				initAngle, _ = asu.GetAngle(GyroSensor)
 				asu.SetSpeed(LeftMotor, 0, 0, 160)
 				asu.SetSpeed(RightMotor, 0, 0, 160)
 			} else {
-				asu.SetSpeed(LeftMotor, 100, 0, 160)
-				asu.SetSpeed(RightMotor, 100, 0, 160)
+				leftColor, err := asu.GetColor(ColorSensorLeft)
+				if err != nil {
+					return fmt.Errorf("can't get left color: %w", err)
+				}
+				rightColor, err := asu.GetColor(ColorSensorRight)
+				if err != nil {
+					return fmt.Errorf("can't get right color: %w", err)
+				}
+				correction := correctionPID.Update(float64(leftColor - rightColor))
+
+				newLeftSpeed := int(80 + (-1 * correction))
+				newRightSpeed := int(80 + correction)
+
+				asu.SetSpeed(LeftMotor, newLeftSpeed, 0, 160)
+				asu.SetSpeed(RightMotor, newRightSpeed, 0, 160)
 			}
 		case 1:
 			angle, _ := asu.GetAngle(GyroSensor)
 			dif := initAngle - angle
 			log.Printf("angle: %d\n", dif)
 			if dif > 80 || dif < -80 {
-				state = 2
+				state = 8
 				asu.SetSpeed(LeftMotor, 0, 0, 160)
 				asu.SetSpeed(RightMotor, 0, 0, 160)
 			} else {
 				asu.SetSpeed(LeftMotor, -100, -160, 160)
 				asu.SetSpeed(RightMotor, 100, -160, 160)
 			}
-		case 2:
-			counter += 1
-			if counter == 50 {
-				counter = 0
-				state = 3
-				initAngle, _ = asu.GetAngle(GyroSensor)
+		case 8:
+			leftColor, err := asu.GetColor(ColorSensorLeft)
+			if err != nil {
+				return fmt.Errorf("can't get left color: %w", err)
+			}
+			rightColor, err := asu.GetColor(ColorSensorRight)
+			if err != nil {
+				return fmt.Errorf("can't get right color: %w", err)
+			}
+			correction := correctionPID.Update(float64(leftColor - rightColor))
+			fmt.Printf("correction: %f\n", correction)
+			if correction >= 30 || correction <= -30 {
+				state = 0
 				asu.SetSpeed(LeftMotor, 0, 0, 160)
 				asu.SetSpeed(RightMotor, 0, 0, 160)
-			} else {
-				asu.SetSpeed(LeftMotor, 100, 0, 160)
-				asu.SetSpeed(RightMotor, 100, 0, 160)
 			}
-		case 3:
-			angle, _ := asu.GetAngle(GyroSensor)
-			dif := initAngle - angle
-			log.Printf("angle: %d\n", dif)
-			if dif > 80 || dif < -80 {
-				state = 4
-				asu.SetSpeed(LeftMotor, 0, 0, 160)
-				asu.SetSpeed(RightMotor, 0, 0, 160)
-			} else {
-				asu.SetSpeed(LeftMotor, 100, -160, 160)
-				asu.SetSpeed(RightMotor, -100, -160, 160)
-			}
-		case 4:
-			counter += 1
-			if counter == 100 {
-				counter = 0
-				state = 5
-				initAngle, _ = asu.GetAngle(GyroSensor)
-				asu.SetSpeed(LeftMotor, 0, 0, 160)
-				asu.SetSpeed(RightMotor, 0, 0, 160)
-			} else {
-				asu.SetSpeed(LeftMotor, 100, 0, 160)
-				asu.SetSpeed(RightMotor, 100, 0, 160)
-			}
-		case 5:
-			angle, _ := asu.GetAngle(GyroSensor)
-			dif := initAngle - angle
-			log.Printf("angle: %d\n", dif)
-			if dif > 80 || dif < -80 {
-				state = 6
-				asu.SetSpeed(LeftMotor, 0, 0, 160)
-				asu.SetSpeed(RightMotor, 0, 0, 160)
-			} else {
-				asu.SetSpeed(LeftMotor, 100, -160, 160)
-				asu.SetSpeed(RightMotor, -100, -160, 160)
-			}
-		case 6:
-			counter += 1
-			if counter == 50 {
-				counter = 0
-				state = 7
-				initAngle, _ = asu.GetAngle(GyroSensor)
-				asu.SetSpeed(LeftMotor, 0, 0, 160)
-				asu.SetSpeed(RightMotor, 0, 0, 160)
-			} else {
-				asu.SetSpeed(LeftMotor, 100, 0, 160)
-				asu.SetSpeed(RightMotor, 100, 0, 160)
-			}
-		case 7:
-			angle, _ := asu.GetAngle(GyroSensor)
-			dif := initAngle - angle
-			log.Printf("angle: %d\n", dif)
-			if dif > 80 || dif < -80 {
-				state = 1
-				asu.SetSpeed(LeftMotor, 0, 0, 160)
-				asu.SetSpeed(RightMotor, 0, 0, 160)
-			} else {
-				asu.SetSpeed(LeftMotor, -100, -160, 160)
-				asu.SetSpeed(RightMotor, 100, -160, 160)
-			}
+			asu.SetSpeed(LeftMotor, 120, 0, 160)
+			asu.SetSpeed(RightMotor, 60, 0, 160)
+
+			// case 2:
+			// 	counter += 1
+			// 	if counter == 30 {
+			// 		counter = 0
+			// 		state = 3
+			// 		initAngle, _ = asu.GetAngle(GyroSensor)
+			// 		asu.SetSpeed(LeftMotor, 0, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 0, 0, 160)
+			// 	} else {
+			// 		asu.SetSpeed(LeftMotor, 100, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 100, 0, 160)
+			// 	}
+			// case 3:
+			// 	angle, _ := asu.GetAngle(GyroSensor)
+			// 	dif := initAngle - angle
+			// 	log.Printf("angle: %d\n", dif)
+			// 	if dif > 80 || dif < -80 {
+			// 		state = 4
+			// 		asu.SetSpeed(LeftMotor, 0, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 0, 0, 160)
+			// 	} else {
+			// 		asu.SetSpeed(LeftMotor, 100, -160, 160)
+			// 		asu.SetSpeed(RightMotor, -100, -160, 160)
+			// 	}
+			// case 4:
+			// 	counter += 1
+			// 	if counter == 80 {
+			// 		counter = 0
+			// 		state = 5
+			// 		initAngle, _ = asu.GetAngle(GyroSensor)
+			// 		asu.SetSpeed(LeftMotor, 0, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 0, 0, 160)
+			// 	} else {
+			// 		asu.SetSpeed(LeftMotor, 100, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 100, 0, 160)
+			// 	}
+			// case 5:
+			// 	angle, _ := asu.GetAngle(GyroSensor)
+			// 	dif := initAngle - angle
+			// 	log.Printf("angle: %d\n", dif)
+			// 	if dif > 80 || dif < -80 {
+			// 		state = 0
+			// 		asu.SetSpeed(LeftMotor, 0, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 0, 0, 160)
+			// 	} else {
+			// 		asu.SetSpeed(LeftMotor, 100, -160, 160)
+			// 		asu.SetSpeed(RightMotor, -100, -160, 160)
+			// 	}
+			// case 6:
+			// 	counter += 1
+			// 	if counter == 30 {
+			// 		counter = 0
+			// 		state = 7
+			// 		initAngle, _ = asu.GetAngle(GyroSensor)
+			// 		asu.SetSpeed(LeftMotor, 0, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 0, 0, 160)
+			// 	} else {
+			// 		asu.SetSpeed(LeftMotor, 100, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 100, 0, 160)
+			// 	}
+			// case 7:
+			// 	angle, _ := asu.GetAngle(GyroSensor)
+			// 	dif := initAngle - angle
+			// 	log.Printf("angle: %d\n", dif)
+			// 	if dif > 80 || dif < -80 {
+			// 		state = 1
+			// 		asu.SetSpeed(LeftMotor, 0, 0, 160)
+			// 		asu.SetSpeed(RightMotor, 0, 0, 160)
+			// 	} else {
+			// 		asu.SetSpeed(LeftMotor, -100, -160, 160)
+			// 		asu.SetSpeed(RightMotor, 100, -160, 160)
+			// 	}
 		}
-
-		// leftColor, err := asu.GetColor(ColorSensor1)
-		// if err != nil {
-		// 	return fmt.Errorf("can't get left color: %w", err)
-		// }
-		// rightColor, err := asu.GetColor(ColorSensor2)
-		// if err != nil {
-		// 	return fmt.Errorf("can't get right color: %w", err)
-		// }
-		// correction := correctionPID.Update(float64(leftColor - rightColor))
-
-		// newLeftSpeed := int(80 + (-1 * correction))
-		// newRightSpeed := int(80 + correction)
-
-		// distance, err := asu.GetDistance(DistanceSensor)
-		// if err != nil {
-		// 	return err
-		// }
-
-		// if distance < 200 {
-
-		// } else {
-		// }
 
 		asu.Command(LeftMotor, "run-forever")
 		asu.Command(RightMotor, "run-forever")
