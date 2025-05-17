@@ -17,13 +17,13 @@ var (
 )
 
 const (
-	LeftMotor  = "/sys/class/tacho-motor/motor4"
-	RightMotor = "/sys/class/tacho-motor/motor3"
+	LeftMotor  = "/sys/class/tacho-motor/motor0"
+	RightMotor = "/sys/class/tacho-motor/motor1"
 
-	DistanceSensor   = "/sys/class/lego-sensor/sensor4"
+	DistanceSensor   = "/sys/class/lego-sensor/sensor1"
 	ColorSensorLeft  = "/sys/class/lego-sensor/sensor2"
-	ColorSensorRight = "/sys/class/lego-sensor/sensor1"
-	GyroSensor       = "/sys/class/lego-sensor/sensor0"
+	ColorSensorRight = "/sys/class/lego-sensor/sensor0"
+	GyroSensor       = "/sys/class/lego-sensor/sensor3"
 )
 
 func main() {
@@ -39,7 +39,7 @@ func run() error {
 
 	after := time.After(time.Second * time.Duration(*Duration))
 
-	correctionPID := asu.NewPIDController(.8, .01, .3, 0)
+	correctionPID := asu.NewPIDController(*P, *I, *D, 0)
 
 	asu.SetSpeed(LeftMotor, int(0), 0, 0)
 	asu.SetSpeed(RightMotor, int(0), 0, 0)
@@ -54,12 +54,12 @@ func run() error {
 		default:
 		}
 
-		log.Printf("state: %d, ", state)
+		fmt.Printf("state: %d, ", state)
 		switch state {
 		case 0:
 			// follow line
 			distance, _ := asu.GetDistance(DistanceSensor)
-			log.Printf("distance: %d\n", distance)
+			fmt.Printf("distance: %d, ", distance)
 			if distance < 100 {
 				state = 1
 				initAngle, _ = asu.GetAngle(GyroSensor)
@@ -75,6 +75,7 @@ func run() error {
 					return fmt.Errorf("can't get right color: %w", err)
 				}
 				correction := correctionPID.Update(float64(leftColor - rightColor))
+				fmt.Printf("correction: %f\n", correction)
 
 				newLeftSpeed := int(80 + (-1 * correction))
 				newRightSpeed := int(80 + correction)
@@ -91,8 +92,8 @@ func run() error {
 				asu.SetSpeed(LeftMotor, 0, 0, 160)
 				asu.SetSpeed(RightMotor, 0, 0, 160)
 			} else {
-				asu.SetSpeed(LeftMotor, -100, -160, 160)
-				asu.SetSpeed(RightMotor, 100, -160, 160)
+				asu.SetSpeed(LeftMotor, -50, -160, 160)
+				asu.SetSpeed(RightMotor, 50, -160, 160)
 			}
 		case 8:
 			leftColor, err := asu.GetColor(ColorSensorLeft)
@@ -105,13 +106,14 @@ func run() error {
 			}
 			correction := correctionPID.Update(float64(leftColor - rightColor))
 			fmt.Printf("correction: %f\n", correction)
-			if correction >= 30 || correction <= -30 {
+			if correction >= 15 || correction <= -20 {
 				state = 0
 				asu.SetSpeed(LeftMotor, 0, 0, 160)
 				asu.SetSpeed(RightMotor, 0, 0, 160)
+			} else {
+				asu.SetSpeed(LeftMotor, 140, 0, 160)
+				asu.SetSpeed(RightMotor, 120, 0, 160)
 			}
-			asu.SetSpeed(LeftMotor, 120, 0, 160)
-			asu.SetSpeed(RightMotor, 60, 0, 160)
 
 			// case 2:
 			// 	counter += 1
